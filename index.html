@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaceReader Landmarks 可视化工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .visualization-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #4a5568;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fafc;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        select, input {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .landmark-info {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .landmark-info h4 {
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+
+        .coordinates {
+            font-family: 'Courier New', monospace;
+            background: #edf2f7;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .highlighted {
+            background: #fed7d7 !important;
+            border-color: #f56565 !important;
+        }
+
+        .quick-nav {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .quick-nav-btn {
+            padding: 6px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+
+        .quick-nav-btn:hover {
+            background: #5a67d8;
+        }
+
+        .data-input {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .data-input textarea {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .data-input textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+
+        .instructions {
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .instructions h4 {
+            color: #c53030;
+            margin-bottom: 8px;
+        }
+
+        .instructions ul {
+            list-style-type: disc;
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            select, input {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>FaceReader Landmarks 可视化工具</h1>
+            <p>2D 和 3D 面部特征点可视化分析</p>
+        </div>
+
+        <div class="data-input">
+            <h3 class="section-title">FaceReader Landmarks 可视化</h3>
+
+            <div class="instructions">
+                <h4>数据格式说明：</h4>
+                <ul>
+                    <li><strong>2D Landmarks</strong>: 67个点，共134个数字 (X1,Y1,X2,Y2,...,X67,Y67)</li>
+                    <li><strong>3D Landmarks</strong>: 468个点，共1404个数字 (X1,Y1,Z1,X2,Y2,Z2,...,X468,Y468,Z468)</li>
+                    <li>页面加载时自动显示第一帧的 2D 和 3D Landmarks</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="visualization-section">
+            <h3 class="section-title">2D Landmarks 可视化</h3>
+            <div class="canvas-container">
+                <canvas id="canvas2d" width="600" height="600"></canvas>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label for="landmarkSelect2d">选择 Landmark 点：</label>
+                    <select id="landmarkSelect2d" onchange="highlightLandmark2d()">
+                        <option value="">请选择...</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="landmarkInput2d">输入 Landmark 编号：</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="landmarkInput2d" placeholder="输入编号 (0-66)" min="0" max="66" style="flex: 1;">
+                        <button class="quick-nav-btn" onclick="goToLandmark2d()">跳转</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="quickNav2d">快速定位：</label>
+                    <div class="quick-nav">
+                        <button class="quick-nav-btn" onclick="quickSelect2d('left_brow')">左眉毛</button>
+                        <button class="quick-nav-btn" onclick="quickSelect2d('right_brow')">右眉毛</button>
+                        <button class="quick-nav-btn" onclick="quickSelect2d('left_eye')">左眼</button>
+                        <button class="quick-nav-btn" onclick="quickSelect2d('right_eye')">右眼</button>
+                        <button class="quick-nav-btn" onclick="quickSelect2d('nose')">鼻子</button>
+                        <button class="quick-nav-btn" onclick="quickSelect2d('mouth')">嘴巴</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="landmark-info" id="info2d">
+                <h4>Landmark 信息</h4>
+                <div class="coordinates" id="coords2d">请选择 Landmark 点查看详细信息</div>
+            </div>
+        </div>
+
+        <div class="visualization-section">
+            <h3 class="section-title">3D Landmarks 可视化</h3>
+            <div class="canvas-container">
+                <div id="canvas3d" style="width: 600px; height: 600px;"></div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label for="landmarkSelect3d">选择 Landmark 点：</label>
+                    <select id="landmarkSelect3d" onchange="highlightLandmark3d()">
+                        <option value="">请选择...</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="landmarkInput3d">输入 Landmark 编号：</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="landmarkInput3d" placeholder="输入编号 (0-467)" min="0" max="467" style="flex: 1;">
+                        <button class="quick-nav-btn" onclick="goToLandmark3d()">跳转</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="landmark-info" id="info3d">
+                <h4>Landmark 信息</h4>
+                <div class="coordinates" id="coords3d">请选择 Landmark 点查看详细信息</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // 全局变量
+        let landmarks2d = [];
+        let landmarks3d = [];
+        let selectedLandmark2d = -1;
+        let selectedLandmark3d = -1;
+        let frameData = [];
+        let currentFrameIndex = -1;
+
+        // Landmark 区域定义
+        const landmarkRegions = {
+            left_brow: { start: 0, end: 9, name: '左眉毛' },
+            right_brow: { start: 10, end: 19, name: '右眉毛' },
+            left_eye: { start: 20, end: 21, name: '左眼角' },
+            right_eye: { start: 22, end: 23, name: '右眼角' },
+            nose: { start: 24, end: 26, name: '鼻子' },
+            mouth: { start: 27, end: 66, name: '嘴巴' }
+        };
+
+        // 初始化页面
+        function initPage() {
+            populateLandmarkSelectors();
+        }
+
+        // 填充 Landmark 选择器
+        function populateLandmarkSelectors() {
+            const select2d = document.getElementById('landmarkSelect2d');
+            const select3d = document.getElementById('landmarkSelect3d');
+
+            // 清空现有选项
+            select2d.innerHTML = '<option value="">请选择...</option>';
+            select3d.innerHTML = '<option value="">请选择...</option>';
+
+            // 添加 2D Landmarks 选项
+            for (let i = 0; i < 67; i++) {
+                const region = getLandmarkRegion(i);
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `点 ${i} - ${region}`;
+                select2d.appendChild(option);
+            }
+
+            // 添加 3D Landmarks 选项
+            for (let i = 0; i < 468; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `点 ${i}`;
+                select3d.appendChild(option);
+            }
+        }
+
+        // 获取 Landmark 区域名称
+        function getLandmarkRegion(index) {
+            for (const [key, region] of Object.entries(landmarkRegions)) {
+                if (index >= region.start && index <= region.end) {
+                    return region.name;
+                }
+            }
+            return '其他';
+        }
+
+
+        // 绘制 2D Landmarks
+        function draw2dLandmarks() {
+            const canvas = document.getElementById('canvas2d');
+            const ctx = canvas.getContext('2d');
+
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (landmarks2d.length === 0) return;
+
+            // 计算缩放和偏移
+            const padding = 50;
+            const points = landmarks2d.map(p => ({ x: p.x, y: p.y }));
+            const bounds = calculateBounds(points);
+            const scale = Math.min(
+                (canvas.width - 2 * padding) / (bounds.maxX - bounds.minX),
+                (canvas.height - 2 * padding) / (bounds.maxY - bounds.minY)
+            );
+
+            // 绘制面部轮廓背景
+            drawFaceOutline(ctx, landmarks2d, scale, bounds, padding);
+
+            // 绘制面部网格
+            drawFaceMesh2d(ctx, landmarks2d, scale, bounds, padding);
+
+            // 绘制所有点
+            for (let i = 0; i < landmarks2d.length; i++) {
+                const x = (landmarks2d[i].x - bounds.minX) * scale + padding;
+                const y = (landmarks2d[i].y - bounds.minY) * scale + padding;
+
+                ctx.fillStyle = i === selectedLandmark2d ? '#f56565' : '#667eea';
+                ctx.beginPath();
+                ctx.arc(x, y, i === selectedLandmark2d ? 6 : 4, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // 显示点编号
+                if (i === selectedLandmark2d) {
+                    ctx.fillStyle = '#2d3748';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(i.toString(), x + 8, y - 8);
+                }
+            }
+        }
+
+        // 绘制 2D 面部网格
+        function drawFaceMesh2d(ctx, landmarks, scale, bounds, padding) {
+            ctx.strokeStyle = '#4a5568';
+            ctx.lineWidth = 1;
+
+            // 眉毛连接
+            drawLineSequence(ctx, landmarks, 0, 9, scale, bounds, padding);
+            drawLineSequence(ctx, landmarks, 10, 19, scale, bounds, padding);
+
+            // 眼睛连接 - 连接眼角点
+            drawLine(ctx, landmarks[20], landmarks[21], scale, bounds, padding);
+            drawLine(ctx, landmarks[22], landmarks[23], scale, bounds, padding);
+
+            // 鼻子连接 - 三角形
+            drawLine(ctx, landmarks[24], landmarks[25], scale, bounds, padding);
+            drawLine(ctx, landmarks[25], landmarks[26], scale, bounds, padding);
+            drawLine(ctx, landmarks[26], landmarks[24], scale, bounds, padding);
+
+            // 嘴巴外轮廓连接
+            drawLineSequence(ctx, landmarks, 27, 36, scale, bounds, padding);
+            drawLineSequence(ctx, landmarks, 57, 66, scale, bounds, padding);
+
+            // 嘴巴内轮廓连接
+            drawLineSequence(ctx, landmarks, 37, 46, scale, bounds, padding);
+            drawLineSequence(ctx, landmarks, 47, 56, scale, bounds, padding);
+
+            // 连接嘴巴的左右两侧
+            drawLine(ctx, landmarks[27], landmarks[57], scale, bounds, padding);
+            drawLine(ctx, landmarks[36], landmarks[66], scale, bounds, padding);
+        }
+
+        // 绘制连续线条序列
+        function drawLineSequence(ctx, landmarks, start, end, scale, bounds, padding) {
+            ctx.beginPath();
+            for (let i = start; i <= end; i++) {
+                const x = (landmarks[i].x - bounds.minX) * scale + padding;
+                const y = (landmarks[i].y - bounds.minY) * scale + padding;
+                if (i === start) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+        }
+
+        // 绘制单条线
+        function drawLine(ctx, point1, point2, scale, bounds, padding) {
+            const x1 = (point1.x - bounds.minX) * scale + padding;
+            const y1 = (point1.y - bounds.minY) * scale + padding;
+            const x2 = (point2.x - bounds.minX) * scale + padding;
+            const y2 = (point2.y - bounds.minY) * scale + padding;
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+
+        // 绘制面部轮廓
+        function drawFaceOutline(ctx, landmarks, scale, bounds, padding) {
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 2;
+            ctx.fillStyle = '#f8fafc';
+
+            // 计算面部中心点
+            const centerX = (landmarks[24].x - bounds.minX) * scale + padding;
+            const centerY = (landmarks[24].y - bounds.minY) * scale + padding;
+
+            // 基于Landmarks计算面部尺寸
+            const faceWidth = Math.abs((landmarks[0].x - landmarks[19].x) * scale);
+            const faceHeight = Math.abs((landmarks[0].y - landmarks[66].y) * scale);
+
+            ctx.beginPath();
+            ctx.ellipse(centerX, centerY, faceWidth * 0.6, faceHeight * 0.8, 0, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.fill();
+        }
+
+        // Three.js 3D场景变量
+        let scene, camera, renderer;
+        let landmarkSpheres = [];
+        let selectedSphere = null;
+
+        // 鼠标控制变量
+        let isMouseDown = false;
+        let mouseX = 0, mouseY = 0;
+        let targetRotationX = 0, targetRotationY = 0;
+        let currentRotationX = 0, currentRotationY = 0;
+
+        // 初始化Three.js场景
+        function initThreeScene() {
+            const container = document.getElementById('canvas3d');
+
+            // 清空容器
+            container.innerHTML = '';
+
+            // 创建场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf8fafc);
+
+            // 设置初始旋转，修正轴向
+            scene.rotation.x = Math.PI / 6; // 30度
+            scene.rotation.y = -Math.PI / 4; // -45度，修正Y轴旋转方向
+
+            // 创建相机
+            camera = new THREE.PerspectiveCamera(75, 600 / 600, 0.1, 1000);
+            camera.position.z = 5;
+
+            // 创建渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(600, 600);
+            renderer.setClearColor(0xf8fafc, 1);
+            container.appendChild(renderer.domElement);
+
+            // 添加鼠标事件监听器
+            renderer.domElement.addEventListener('mousedown', onMouseDown, false);
+            renderer.domElement.addEventListener('mousemove', onMouseMove, false);
+            renderer.domElement.addEventListener('mouseup', onMouseUp, false);
+            renderer.domElement.addEventListener('wheel', onMouseWheel, false);
+
+            // 添加光源
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+
+            // 添加坐标轴辅助
+            const axesHelper = new THREE.AxesHelper(2);
+            scene.add(axesHelper);
+
+
+            // 动画循环
+            animate();
+
+            // 添加鼠标点击事件
+            renderer.domElement.addEventListener('click', onCanvasClick, false);
+        }
+
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 平滑旋转
+            currentRotationX += (targetRotationX - currentRotationX) * 0.1;
+            currentRotationY += (targetRotationY - currentRotationY) * 0.1;
+
+            // 应用旋转
+            scene.rotation.x = currentRotationY;
+            scene.rotation.y = currentRotationX;
+
+            renderer.render(scene, camera);
+        }
+
+        // 鼠标按下事件
+        function onMouseDown(event) {
+            isMouseDown = true;
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        }
+
+        // 鼠标移动事件
+        function onMouseMove(event) {
+            if (!isMouseDown) return;
+
+            const deltaX = event.clientX - mouseX;
+            const deltaY = event.clientY - mouseY;
+
+            targetRotationX += deltaX * 0.01;
+            targetRotationY += deltaY * 0.01;
+
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        }
+
+        // 鼠标释放事件
+        function onMouseUp(event) {
+            isMouseDown = false;
+        }
+
+        // 鼠标滚轮事件（缩放）
+        function onMouseWheel(event) {
+            event.preventDefault();
+            camera.position.z += event.deltaY * 0.01;
+            camera.position.z = Math.max(1, Math.min(20, camera.position.z));
+        }
+
+        // 处理画布点击事件
+        function onCanvasClick(event) {
+            // 计算鼠标位置
+            const rect = renderer.domElement.getBoundingClientRect();
+            const mouse = new THREE.Vector2();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            // 创建射线
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            // 检测与所有球体的交点
+            const intersects = raycaster.intersectObjects(landmarkSpheres);
+
+            if (intersects.length > 0) {
+                const clickedSphere = intersects[0].object;
+                const index = clickedSphere.userData.index;
+
+                // 触发点击事件
+                if (clickedSphere.userData.onClick) {
+                    clickedSphere.userData.onClick();
+                }
+            }
+        }
+
+        // 绘制 3D Landmarks
+        function draw3dLandmarks() {
+            if (!scene) {
+                initThreeScene();
+            }
+
+            // 清除之前的点
+            landmarkSpheres.forEach(sphere => {
+                scene.remove(sphere);
+            });
+            landmarkSpheres = [];
+
+            if (landmarks3d.length === 0) {
+                return;
+            }
+
+            // 计算3D数据的边界用于缩放
+            const bounds = calculate3dBounds(landmarks3d);
+            const centerX = (bounds.minX + bounds.maxX) / 2;
+            const centerY = (bounds.minY + bounds.maxY) / 2;
+            const centerZ = (bounds.minZ + bounds.maxZ) / 2; // 使用实际的Z轴中心
+
+            // 计算缩放因子
+            const rangeX = bounds.maxX - bounds.minX;
+            const rangeY = bounds.maxY - bounds.minY;
+            const rangeZ = bounds.maxZ - bounds.minZ; // 使用实际的Z轴范围
+            const maxRange = Math.max(rangeX, rangeY, rangeZ);
+            const scale = 6 / maxRange; // 缩放因子，使模型适合视图（从4增加到6）
+
+            // 创建所有Landmark点
+            for (let i = 0; i < landmarks3d.length; i++) {
+                const landmark = landmarks3d[i];
+
+                // 创建球体几何体
+                const geometry = new THREE.SphereGeometry(0.05, 16, 16);
+
+                // 设置颜色：选中的点为红色，其他为绿色
+                const material = new THREE.MeshPhongMaterial({
+                    color: i === selectedLandmark3d ? 0xff0000 : 0x48bb78,
+                    shininess: 30
+                });
+
+                const sphere = new THREE.Mesh(geometry, material);
+
+                // 设置位置（应用缩放和中心偏移，修正Z轴方向）
+                sphere.position.set(
+                    (landmark.x - centerX) * scale,
+                    (landmark.y - centerY) * scale,
+                    -(landmark.z - centerZ) * scale  // 反转Z轴，使面部朝向屏幕外
+                );
+
+                // 存储索引信息
+                sphere.userData = { index: i };
+
+                // 添加点击事件
+                sphere.userData.onClick = function() {
+                    selectedLandmark3d = i;
+                    update3dLandmarkInfo();
+                    draw3dLandmarks(); // 重新绘制以更新颜色
+                };
+
+                scene.add(sphere);
+                landmarkSpheres.push(sphere);
+            }
+
+
+            // 更新相机位置，确保模型在视平面之上
+            camera.position.set(0, 0, 8);
+        }
+
+
+        // 计算3D数据边界
+        function calculate3dBounds(landmarks3d) {
+            let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+            for (const point of landmarks3d) {
+                minX = Math.min(minX, point.x);
+                minY = Math.min(minY, point.y);
+                minZ = Math.min(minZ, point.z);
+                maxX = Math.max(maxX, point.x);
+                maxY = Math.max(maxY, point.y);
+                maxZ = Math.max(maxZ, point.z);
+            }
+
+            return { minX, minY, minZ, maxX, maxY, maxZ };
+        }
+
+
+        // 更新3D Landmark信息
+        function update3dLandmarkInfo() {
+            if (selectedLandmark3d >= 0 && landmarks3d.length > 0) {
+                const landmark = landmarks3d[selectedLandmark3d];
+                document.getElementById('coords3d').textContent =
+                    `点 ${selectedLandmark3d}: X=${landmark.x.toFixed(2)}, Y=${landmark.y.toFixed(2)}, Z=${landmark.z.toFixed(2)}`;
+            }
+        }
+
+
+
+        // 计算边界
+        function calculateBounds(points) {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+            for (const point of points) {
+                minX = Math.min(minX, point.x);
+                minY = Math.min(minY, point.y);
+                maxX = Math.max(maxX, point.x);
+                maxY = Math.max(maxY, point.y);
+            }
+
+            return { minX, minY, maxX, maxY };
+        }
+
+        // 高亮 2D Landmark
+        function highlightLandmark2d() {
+            const select = document.getElementById('landmarkSelect2d');
+            selectedLandmark2d = parseInt(select.value);
+
+            if (selectedLandmark2d >= 0 && landmarks2d.length > 0) {
+                const landmark = landmarks2d[selectedLandmark2d];
+                document.getElementById('coords2d').textContent =
+                    `点 ${selectedLandmark2d}: X=${landmark.x.toFixed(2)}, Y=${landmark.y.toFixed(2)}`;
+                draw2dLandmarks();
+            }
+        }
+
+        // 高亮 3D Landmark
+        function highlightLandmark3d() {
+            const select = document.getElementById('landmarkSelect3d');
+            selectedLandmark3d = parseInt(select.value);
+
+            if (selectedLandmark3d >= 0 && landmarks3d.length > 0) {
+                update3dLandmarkInfo();
+                draw3dLandmarks();
+            }
+        }
+
+        // 2D 快速选择
+        function quickSelect2d(region) {
+            const regionInfo = landmarkRegions[region];
+            if (regionInfo) {
+                const select = document.getElementById('landmarkSelect2d');
+                select.value = regionInfo.start;
+                highlightLandmark2d();
+            }
+        }
+
+        // 3D 快速选择
+        function quickSelect3d(region) {
+            const regionInfo = landmarkRegions[region];
+            if (regionInfo) {
+                const select = document.getElementById('landmarkSelect3d');
+                select.value = regionInfo.start;
+                highlightLandmark3d();
+            }
+        }
+
+        // 2D 跳转到指定编号
+        function goToLandmark2d() {
+            const input = document.getElementById('landmarkInput2d');
+            const landmarkIndex = parseInt(input.value);
+
+            if (isNaN(landmarkIndex)) {
+                alert('请输入有效的 Landmark 编号 (0-66)');
+                return;
+            }
+
+            if (landmarkIndex < 0 || landmarkIndex > 66) {
+                alert('Landmark 编号必须在 0 到 66 之间');
+                return;
+            }
+
+            if (landmarks2d.length === 0) {
+                alert('请先加载数据');
+                return;
+            }
+
+            // 更新选择器
+            const select = document.getElementById('landmarkSelect2d');
+            select.value = landmarkIndex;
+
+            // 高亮点
+            selectedLandmark2d = landmarkIndex;
+            const landmark = landmarks2d[landmarkIndex];
+            document.getElementById('coords2d').textContent =
+                `点 ${landmarkIndex}: X=${landmark.x.toFixed(2)}, Y=${landmark.y.toFixed(2)}`;
+
+            draw2dLandmarks();
+
+            // 清空输入框
+            input.value = '';
+        }
+
+        // 3D 跳转到指定编号
+        function goToLandmark3d() {
+            const input = document.getElementById('landmarkInput3d');
+            const landmarkIndex = parseInt(input.value);
+
+            if (isNaN(landmarkIndex)) {
+                alert('请输入有效的 Landmark 编号 (0-467)');
+                return;
+            }
+
+            if (landmarkIndex < 0 || landmarkIndex > 467) {
+                alert('Landmark 编号必须在 0 到 467 之间');
+                return;
+            }
+
+            if (landmarks3d.length === 0) {
+                alert('请先加载数据');
+                return;
+            }
+
+            // 更新选择器
+            const select = document.getElementById('landmarkSelect3d');
+            select.value = landmarkIndex;
+
+            // 高亮点
+            selectedLandmark3d = landmarkIndex;
+            update3dLandmarkInfo();
+            draw3dLandmarks();
+
+            // 清空输入框
+            input.value = '';
+        }
+
+        // 创建标准 2D Landmarks 模板
+        function createStandard2dLandmarks() {
+            const landmarks = [];
+            const centerX = 450;
+            const centerY = 350;
+
+            // 左眉毛 (0-9) - 弧形
+            for (let i = 0; i < 10; i++) {
+                const t = i / 9;
+                landmarks.push({
+                    x: centerX - 150 + i * 30,
+                    y: centerY - 150 - Math.sin(t * Math.PI) * 15
+                });
+            }
+
+            // 右眉毛 (10-19) - 弧形
+            for (let i = 0; i < 10; i++) {
+                const t = i / 9;
+                landmarks.push({
+                    x: centerX + 150 - i * 30,
+                    y: centerY - 150 - Math.sin(t * Math.PI) * 15
+                });
+            }
+
+            // 左眼角 (20-21)
+            landmarks.push({ x: centerX - 100, y: centerY - 100 });
+            landmarks.push({ x: centerX - 60, y: centerY - 100 });
+
+            // 右眼角 (22-23)
+            landmarks.push({ x: centerX + 60, y: centerY - 100 });
+            landmarks.push({ x: centerX + 100, y: centerY - 100 });
+
+            // 鼻子 (24-26)
+            landmarks.push({ x: centerX, y: centerY - 50 });
+            landmarks.push({ x: centerX - 20, y: centerY });
+            landmarks.push({ x: centerX + 20, y: centerY });
+
+            // 嘴巴 (27-66)
+            // 上嘴唇外轮廓 (27-36)
+            for (let i = 0; i < 10; i++) {
+                const t = i / 9;
+                landmarks.push({
+                    x: centerX - 80 + i * 16,
+                    y: centerY + 50 - Math.sin(t * Math.PI) * 20
+                });
+            }
+
+            // 上嘴唇内轮廓 (37-46)
+            for (let i = 0; i < 10; i++) {
+                const t = i / 9;
+                landmarks.push({
+                    x: centerX - 60 + i * 12,
+                    y: centerY + 60 - Math.sin(t * Math.PI) * 10
+                });
+            }
+
+            // 下嘴唇内轮廓 (47-56)
+            for (let i = 0; i < 10; i++) {
+                const t = i / 9;
+                landmarks.push({
+                    x: centerX - 60 + i * 12,
+                    y: centerY + 70 + Math.sin(t * Math.PI) * 10
+                });
+            }
+
+            // 下嘴唇外轮廓 (57-66)
+            for (let i = 0; i < 10; i++) {
+                const t = i / 9;
+                landmarks.push({
+                    x: centerX - 80 + i * 16,
+                    y: centerY + 80 + Math.sin(t * Math.PI) * 20
+                });
+            }
+
+            return landmarks;
+        }
+
+        // 创建标准 3D Landmarks 模板
+        function createStandard3dLandmarks() {
+            const landmarks = [];
+            const canvasWidth = 600;
+            const canvasHeight = 600;
+
+            // 创建468个标准3D面部特征点
+            // 确保点在画布可见范围内
+            for (let i = 0; i < 468; i++) {
+                // 在画布范围内生成点
+                const x = 50 + Math.random() * 500;  // X: 50 到 550
+                const y = 50 + Math.random() * 500;  // Y: 50 到 550
+                const z = 500;                       // Z: 固定值
+                landmarks.push({ x, y, z });
+            }
+
+            return landmarks;
+        }
+
+        // 3D到2D投影函数
+        function project3dTo2d(point3d) {
+            // 根据技术文档中的相机矩阵参数
+            const w = 600; // 图像宽度（像素）
+            const h = 600; // 图像高度（像素）
+            const fx = 1.2 * Math.max(w, h); // 720
+            const fy = 1.2 * Math.max(w, h); // 720
+            const cx = w / 2; // 300
+            const cy = h / 2; // 300
+
+            // 投影公式：xm = (xw * fx) / zw + cx, ym = (yw * fy) / zw + cy
+            const xm = (point3d.x * fx) / point3d.z + cx;
+            const ym = (point3d.y * fy) / point3d.z + cy;
+
+            return { x: xm, y: ym };
+        }
+
+        // 加载第一帧数据
+        function loadFirstFrameData() {
+            // 使用完整的2D Landmarks数据 (67个点，134个坐标)
+            const firstFrame2dData = [
+                795.1543, 501.12405, 819.19885, 477.46487, 854.39923, 463.08627, 903.619, 460.79938, 971.7974, 478.85413,
+                776.98834, 489.46872, 801.6896, 460.04208, 842.2511, 440.89072, 896.74054, 436.98535, 959.9839, 439.55872,
+                1264.6333, 468.9101, 1236.8706, 449.43463, 1199.5497, 440.0085, 1150.8568, 444.62448, 1087.6763, 471.5079,
+                1280.2079, 454.712, 1251.0057, 429.943, 1207.5121, 416.79807, 1153.4314, 420.3473, 1091.7144, 431.39618,
+                846.52905, 556.9596, 956.61035, 562.4503, 1222.6427, 530.9167, 1115.6641, 552.73596, 1035.7739, 707.73676,
+                1054.4836, 679.5341, 1077.8236, 704.5488, 952.7479, 826.975, 965.35864, 843.98724, 981.57733, 860.03534,
+                1005.38025, 878.2829, 1036.2689, 890.0445, 1071.6709, 892.1582, 1105.9412, 886.07196, 1133.4043, 871.1926,
+                1152.2225, 851.0257, 1163.3179, 832.45135, 1169.7185, 815.25793, 964.15436, 818.87756, 979.54926, 811.4204,
+                999.89996, 802.724, 1029.843, 792.88586, 1062.7252, 795.99963, 1094.5693, 788.84515, 1123.8464, 795.39606,
+                1144.1558, 802.0149, 1158.7607, 808.3847, 963.60284, 827.5817, 981.2277, 837.2405, 995.8469, 843.9684,
+                1015.88226, 850.1573, 1039.7113, 853.6362, 1068.2338, 854.9217, 1095.2598, 851.32465, 1117.3062, 844.4084,
+                1133.7454, 836.28894, 1145.7363, 828.12006, 1159.8845, 817.0458, 977.8527, 823.60785, 993.579, 820.0305,
+                1012.7312, 816.45496, 1036.3951, 814.9333, 1063.7404, 814.559, 1090.3685, 812.15436, 1112.611, 811.1426,
+                1130.2916, 812.02094, 1144.9934, 814.2074
+            ];
+
+
+            // 解析2D数据
+            landmarks2d = [];
+            for (let i = 0; i < 67; i++) {
+                landmarks2d.push({
+                    x: firstFrame2dData[i * 2],
+                    y: firstFrame2dData[i * 2 + 1]
+                });
+            }
+
+            // 创建完整的3D Landmarks数据 (468个点)
+            landmarks3d = [];
+
+            // 使用真实的3D Landmarks数据 (从示例数据中提取的第一帧)
+            const firstFrame3dData = [
+                -117.8391,70.36617,915.192,-118.26496,91.903175,908.10156,-119.027565,85.99891,914.7356,-126.81705,112.9039,910.5987,-118.80956,98.35429,907.0011,-120.004555,106.94061,907.6982,-123.504364,128.92274,913.63025,-170.73091,129.27356,923.0558,-125.69637,147.92491,914.60144,-126.39038,157.78818,913.59686,-129.74603,193.4243,914.41235,-117.75502,68.50577,915.5824,-117.715836,66.990486,916.46173,-117.87336,65.9245,917.41754,-116.969826,55.994793,919.0933,-116.6466,53.32341,918.63727,-116.22262,49.9903,918.4018,-116.1237,46.72697,919.1702,-116.043365,43.436604,922.0381,-118.21006,88.62705,909.4611,-124.412735,88.51177,912.8397,-203.40408,157.36049,933.4125,-153.37138,123.12804,920.4818,-159.56401,122.5835,920.78345,-165.73865,122.90647,921.52136,-173.8959,126.61167,923.61487,-148.31998,124.773125,920.85944,-163.23676,143.01686,918.95135,-156.06082,142.56299,918.9074,-170.11166,141.40596,919.98,-174.58783,138.45695,921.1192,-180.22293,122.1359,925.0054,-139.25645,35.77949,925.1338,-173.07704,130.8694,923.9173,-202.87387,126.94019,935.79205,-188.88567,126.81201,927.27014,-155.1388,95.97702,919.4672,-126.02896,71.159134,915.4614,-125.29194,66.78792,916.7571,-133.6851,68.837555,917.0385,-139.05363,66.82727,919.10486,-131.6667,66.05153,917.77563,-136.73274,65.17205,919.6707,-148.02596,56.203754,923.9969,-123.57762,91.55083,908.2558,-125.06373,97.83769,907.2871,-185.5184,144.51967,921.8409,-142.72047,113.15334,918.56146,-139.76357,92.36392,914.11816,-140.97128,95.78213,914.74133,-176.17508,95.93433,922.7371,-125.94777,105.88343,908.45447,-169.9044,153.28111,917.4231,-179.06862,150.0555,919.5563,-197.34549,169.60562,927.95074,-140.39084,149.00652,915.23895,-149.90555,139.78693,919.67804,-153.54999,62.921066,924.0081,-186.71762,65.550705,945.8341,-134.46063,89.12094,915.1623,-129.15916,87.755714,915.32574,-146.46117,63.271294,923.7344,-144.57701,63.191048,923.0141,-183.59743,154.53635,920.3928,-140.09758,89.67297,915.60455,-157.39774,153.58272,915.8322,-158.96332,159.34987,915.0202,-169.65411,187.12009,917.5128,-190.65321,162.08797,923.4911,-163.8323,173.32553,916.0258,-190.43846,147.7278,923.7,-197.23384,152.12558,928.12714,-125.77752,68.73935,915.8295,-132.62602,67.33664,917.3037,-137.90504,66.08699,919.19574,-133.05676,88.109024,915.9077,-145.4877,63.241276,923.3629,-142.05188,59.88289,922.205,-143.62927,63.06877,922.9927,-130.90749,91.30945,911.7056,-135.68,64.74049,919.9166,-130.72081,65.53829,918.6091,-124.69974,65.84732,917.63806,-125.55693,43.14076,922.06525,-124.94848,47.256752,919.2371,-124.890076,50.534477,918.6248,-124.5859,53.694252,918.8999,-124.103264,56.32915,919.3265,-135.29778,58.854336,921.1627,-136.50249,57.972992,920.7488,-137.8191,56.458233,920.5269,-138.85126,54.84171,921.11224,-146.71362,73.33184,919.7041,-200.2849,98.582535,947.849,-118.72579,87.379555,912.86505,-139.12614,60.611763,922.3563,-140.58899,60.178814,922.12494,-127.2491,85.469574,915.38635,-138.18134,86.35332,917.6851,-128.12593,86.51408,915.29364,-149.89096,108.92857,919.5854,-160.96346,104.18379,920.59406,-142.16049,92.936905,916.2738,-186.5454,179.63986,922.3429,-180.09186,169.39424,919.5154,-172.91934,158.79364,917.3998,-142.12378,51.211372,923.16754,-143.09682,158.50266,913.8136,-147.11697,174.61296,914.1323,-151.38367,191.26106,914.8086,-170.77635,124.19557,922.6398,-187.62645,117.221275,926.44855,-144.99405,126.80168,921.1059,-181.7002,135.4325,923.4703,-138.26164,117.74119,917.55334,-135.83676,94.93097,911.628,-194.59636,112.87336,929.4791,-182.36528,112.53677,924.4452,-173.31851,110.27688,922.2553,-160.40848,111.615456,921.2703,-151.14946,114.5117,920.5673,-144.21204,117.78179,919.8077,-129.89532,126.88376,914.59265,-191.77658,98.79736,929.5062,-187.6583,136.27571,924.48145,-121.32974,88.60659,909.57294,-140.9876,106.4781,917.6206,-206.40515,129.18048,944.2317,-139.1449,121.90973,919.2426,-143.34477,92.819466,918.8224,-176.97833,130.6201,924.4351,-136.85822,99.1396,912.3994,-194.68399,82.38697,947.526,-145.14467,129.15805,921.5128,-131.65965,103.25893,909.9599,-167.93816,50.32183,933.2284,-166.6433,44.29721,938.2434,-198.31099,98.242004,938.58575,-178.24353,58.162647,935.81635,-200.65848,140.55077,932.5992,-139.00125,31.05687,926.992,-121.07027,87.37677,912.9996,-146.99536,101.38394,918.7076,-195.06874,125.71078,929.6703,-165.06201,126.96106,921.525,-159.96962,126.36121,920.8981,-143.14078,58.94617,922.67395,-188.54553,85.49233,930.9375,-126.89274,24.385395,928.26697,-146.16685,32.19533,932.5231,-155.124,37.112194,935.0018,-128.03806,175.55011,913.6281,-114.594154,24.065807,927.6573,-154.95093,126.77483,920.7598,-150.29842,127.72878,921.0991,-146.9503,128.39813,921.56586,-193.34564,137.88222,926.8189,-150.54622,133.57806,920.21515,-155.81685,135.1982,919.7997,-160.94135,135.40353,919.97314,-166.06105,134.46094,920.7609,-169.33337,133.08348,921.66437,-206.32938,144.64346,939.33234,-168.37668,128.10924,922.36053,-118.78909,80.409035,915.5536,-140.26233,76.977936,918.15326,-134.3242,90.1234,914.23376,-127.770775,79.52346,915.81165,-124.747116,138.28662,914.9865,-157.6922,42.67208,931.43555,-148.54384,37.206657,929.3807,-127.67222,26.850258,924.9317,-176.90016,52.877316,942.3624,-146.78918,130.9621,920.9953,-132.85422,115.85637,914.1385,-114.48881,26.635847,924.4924,-137.02283,27.70062,929.91504,-193.69514,83.50132,938.91943,-130.15291,57.246113,920.1381,-131.2155,55.665707,919.6737,-132.11903,53.153076,919.4508,-132.75275,50.228134,920.0127,-134.78828,46.37311,922.3229,-140.96815,64.309975,921.461,-142.23734,64.68709,921.4846,-143.24698,65.13415,921.42065,-151.39052,68.68387,921.70166,-179.28615,81.76976,925.9505,-134.07777,122.81458,916.21857,-140.23402,135.83846,919.5296,-144.29918,134.1551,920.5095,-139.85692,63.96681,921.61456,-177.16977,66.63313,930.5094,-133.57036,136.71373,916.51917,-137.56145,41.116146,923.89935,-121.17838,114.2341,909.7423,-128.289,119.481606,912.33374,-122.43316,121.14749,911.7507,-136.23859,105.05077,914.4612,-114.9195,31.16449,922.87787,-115.48779,37.437836,922.49255,-126.94591,37.47926,922.8573,-152.96982,53.548252,925.5491,-148.7167,87.632805,919.77875,-145.73347,46.45992,924.9081,-165.0625,87.6678,920.85004,-154.57938,80.90931,920.651,-169.09431,77.21591,923.2101,-127.90169,31.14019,923.3505,-139.96718,101.18593,916.31433,-157.21541,48.877575,928.1491,-148.13733,42.173233,927.034,-159.39073,61.32304,925.166,-184.84808,74.44174,932.3283,-167.11351,60.101337,927.5956,-187.58208,69.956825,938.5444,-158.87868,72.79026,922.21735,-136.76437,111.261536,916.02106,-133.03854,92.181946,911.15137,-137.35971,90.38479,913.93427,-130.67056,96.77585,909.429,-145.73099,142.63446,918.49133,-156.5685,146.62733,918.15454,-165.86023,146.86493,918.50616,-173.76157,144.73862,919.7066,-179.19093,141.06961,921.3907,-182.15317,128.88466,925.4626,-201.46779,112.58529,937.30164,-176.09106,119.364494,923.80554,-169.17665,117.47138,922.4382,-160.35097,117.526566,921.4564,-152.18121,119.07526,920.7445,-146.0287,121.59106,920.70685,-141.78282,124.09065,920.38696,-203.81705,114.18843,946.8127,-137.2864,88.812996,915.2442,-131.76259,109.66982,912.3805,-128.15,92.22083,909.3635,-124.562,89.447395,910.5122,-128.14192,91.25346,910.57367,-135.7492,87.079285,916.21893,-123.48235,88.857765,909.9104,-123.079765,87.828445,912.94135,-142.80292,129.22556,921.1837,-138.60654,128.35918,919.81244,-135.76387,127.59098,918.3552,-171.35962,131.94417,922.6673,-177.35234,135.04556,922.7201,-115.832855,113.74109,910.63873,-80.575096,135.43614,923.3292,-113.40668,89.249596,912.9025,-55.71982,168.32585,933.89496,-95.592255,126.92611,920.7395,-89.56246,127.25098,921.06885,-83.69334,128.67781,921.835,-77.29509,133.38794,923.91266,-101.21937,127.93257,921.064,-89.14284,147.97386,919.1663,-96.10467,146.5414,919.1176,-82.47833,147.3082,920.21936,-77.93576,145.05302,921.3627,-70.241974,130.24475,925.3838,-92.96179,39.24369,925.3786,-78.95655,137.42592,924.17224,-51.973854,138.3949,936.4211,-63.132866,136.04521,927.7461,-87.991325,100.92712,919.73785,-109.98752,72.16881,915.55676,-110.630196,67.710434,916.85785,-102.9101,70.67058,917.2004,-98.08704,69.1835,919.29456,-104.86726,67.4624,917.93097,-100.44034,67.27622,919.8632,-89.05474,60.03264,924.21106,-113.23728,92.34044,908.30695,-112.92026,98.59412,907.32495,-68.2964,152.62233,922.1886,-102.99848,116.06004,918.6913,-99.79462,95.2748,914.32153,-99.7143,98.75991,914.92694,-68.570564,104.14246,923.1403,-114.403465,106.859245,908.4982,-84.14118,159.05779,917.65875,-75.04097,157.0871,919.84125,-62.37689,179.62996,928.4552,-111.66678,150.83923,915.307,-101.84087,143.11525,919.8595,-85.113884,67.64943,924.34015,-58.76295,75.605415,946.4396,-104.815506,91.25122,915.3448,-109.71539,89.24159,915.415,-92.19485,66.225975,924.04767,-93.81245,65.9386,923.26764,-71.58839,162.10257,920.73975,-99.48545,92.65827,915.82043,-96.0742,157.62743,916.0154,-95.35341,163.51166,915.2293,-90.23162,192.93718,917.8763,-66.92353,171.10643,923.9222,-93.38089,178.42604,916.34186,-64.53904,156.49376,924.10333,-59.756104,162.14752,928.5627,-110.11688,69.64602,915.9362,-103.84192,68.97833,917.4747,-99.11761,68.174225,919.3785,-106.12984,90.1571,916.0616,-92.79427,66.120605,923.65375,-94.92401,62.36291,922.4027,-94.57417,65.72109,923.24243,-107.223366,93.01043,911.84283,-101.62855,66.74972,920.09705,-105.88162,66.871315,918.75964,-111.29337,66.54502,917.7328,-107.030876,44.651413,922.1384,-107.60684,48.250168,919.31555,-108.14031,51.432934,918.70996,-109.06034,54.70315,918.9788,-110.28102,56.911385,919.4316,-100.90351,60.782322,921.3376,-99.32766,60.10129,920.906,-97.62368,58.585434,920.6625,-96.283745,57.099365,921.2632,-92.29599,77.26906,919.9831,-52.222107,109.83714,948.4592,-98.039246,62.903927,922.54913,-96.59801,62.635887,922.3017,-111.207565,86.688995,915.47034,-101.58235,88.95489,917.8776,-110.5083,87.75615,915.38275,-95.46992,113.08774,919.79614,-84.193565,109.950424,920.88684,-98.46869,96.165344,916.48627,-73.38996,188.06076,922.8386,-77.50896,176.88564,919.90686,-82.164116,164.83301,917.6863,-93.33154,54.50092,923.34534,-110.49849,160.54315,913.92596,-109.41719,177.30545,914.2683,-108.23352,194.485,915.0261,-79.39162,130.77107,922.9546,-62.44322,126.47293,926.94135,-104.81778,129.32576,921.27454,-70.99357,143.1322,923.81384,-108.17201,119.935616,917.64435,-103.4175,97.23058,911.7785,-55.518173,123.461876,930.0292,-66.11511,121.21765,924.8728,-73.86223,117.6811,922.58795,-86.30439,117.09629,921.5348,-95.769485,118.48104,920.75995,-103.188805,120.79164,919.9427,-117.32089,127.87639,914.63477,-55.641552,109.04013,930.0032,-65.50201,144.96509,924.92444,-115.404564,89.11091,909.6144,-102.85441,109.29361,917.76166,-51.06172,141.01027,944.7892,-108.65496,124.12419,919.35913,-98.059906,96.13028,918.99316,-75.242874,137.74307,924.73553,-103.50689,101.57343,912.541,-54.53487,93.12401,948.1714,-105.45899,131.61107,921.7076,-108.81289,104.9357,910.0579,-70.495834,57.617695,933.62976,-71.825874,51.488297,938.5968,-51.527863,109.4991,939.1693,-63.02919,67.12185,936.33984,-55.566406,151.34155,933.145,-92.29975,34.551823,927.17633,-116.44801,87.81734,913.0252,-96.40033,105.14527,918.90704,-57.602505,135.93884,930.2574,-85.3571,132.47206,921.8149,-89.89486,131.05812,921.1866,-93.677574,61.842846,922.86926,-56.525547,95.63896,931.4148,-102.75413,26.115358,928.3355,-87.05062,36.360638,932.7179,-80.3302,42.58851,935.2704,-95.15081,130.64372,921.0414,-100.001526,130.92422,921.3246,-103.40404,131.23552,921.79266,-60.576664,147.47105,927.31744,-100.5887,136.92703,920.46136,-95.45723,139.29851,920.0449,-90.222916,140.1599,920.2112,-85.496574,139.90231,920.99817,-82.23254,138.92096,921.89905,-52.290806,156.34521,939.85864,-82.52538,133.98099,922.66223,-98.46146,80.013885,918.38257,-104.712425,92.23943,914.35443,-110.05782,80.81363,915.9152,-78.324844,48.684395,931.7604,-85.22816,41.787228,929.63727,-101.99345,28.651089,925.0451,-64.83201,61.52435,942.8246,-103.96325,133.84045,921.1969,-111.88008,117.35652,914.1947,-94.12208,30.7353,930.04254,-53.494785,94.197136,939.4656,-104.88691,58.688602,920.28577,-103.44983,57.079037,919.82495,-101.83916,54.613132,919.5635,-100.85832,52.003044,920.14886,-98.96492,48.877983,922.47,-96.83235,66.59503,921.69696,-95.72675,67.29594,921.7328,-94.693855,67.77187,921.6714,-87.53912,73.030136,922.05475,-63.715946,90.61671,926.4867,-112.94791,124.40898,916.2993,-110.6638,137.82558,919.64954,-106.70769,136.6455,920.6422,-98.1465,66.32814,921.81244,-64.22705,75.2719,931.05365,-116.39249,137.83545,916.55304,-95.594215,44.23731,924.09607,-116.492836,120.35167,912.3687,-106.18624,107.3888,914.5311,-104.70503,39.003895,922.9319,-83.71976,58.424404,925.865,-92.46936,91.820816,920.035,-89.09659,50.686813,925.12604,-77.22121,94.23521,921.2641,-85.905174,86.05294,921.00793,-72.11611,84.62201,923.69476,-102.43875,33.017998,923.4882,-102.23535,103.96838,916.4506,-79.3378,54.63923,928.47546,-86.13184,46.825798,927.29956,-79.283356,67.281815,925.5766,-58.604473,84.30564,932.86945,-71.82513,67.184105,928.0374,-56.827328,80.09563,939.1033,-81.10906,78.48956,922.6618,-107.52965,113.47012,916.1137,-105.46459,94.22494,911.2893,-101.842094,92.88194,914.10547,-107.96008,98.45466,909.5483,-106.110954,145.24101,918.64215,-96.13321,150.7199,918.3649,-87.170235,152.04257,918.7286,-79.42779,151.0483,919.96594,-73.97112,148.32314,921.66974,-69.96668,136.87347,925.85974,-51.05349,123.99014,937.9129,-73.3491,126.7861,924.13464,-79.40092,124.067024,922.74445,-87.74427,122.6669,921.7373,-95.980934,122.97878,920.96356,-102.47949,124.58651,920.8743,-107.29018,126.380806,920.4996,-51.328915,125.84161,947.44727,-101.98005,91.41181,915.40704,-110.86462,111.34635,912.46387,-109.33647,93.59574,909.4308,-112.68776,90.29613,910.58246,-109.56436,92.45578,910.6619,-103.464615,89.413185,916.3865,-113.58035,89.66275,909.94586,-114.56778,88.28377,912.97595,-107.65232,131.50108,921.3436,-110.95891,130.1798,919.93353,-112.83026,129.13599,918.4157,-80.395065,138.12756,922.9122,-74.9562,142.09294,923.0045
+            ];
+
+            // 解析3D数据
+            for (let i = 0; i < 468; i++) {
+                landmarks3d.push({
+                    x: firstFrame3dData[i * 3],
+                    y: firstFrame3dData[i * 3 + 1],
+                    z: firstFrame3dData[i * 3 + 2]
+                });
+            }
+
+            draw2dLandmarks();
+            draw3dLandmarks();
+        }
+
+        // 页面加载时初始化
+        window.onload = function() {
+            initPage();
+            // 自动加载第一帧数据
+            loadFirstFrameData();
+
+            // 添加键盘事件监听
+            document.getElementById('landmarkInput2d').addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    goToLandmark2d();
+                }
+            });
+
+            document.getElementById('landmarkInput3d').addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    goToLandmark3d();
+                }
+            });
+        };
+    </script>
+</body>
+</html>
