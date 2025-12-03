@@ -899,8 +899,9 @@
             for (let i = 0; i < landmarks3d.length; i++) {
                 const landmark = landmarks3d[i];
 
-                // 创建球体几何体
-                const geometry = new THREE.SphereGeometry(0.05, 16, 16);
+                // 创建球体几何体：选中的点更大（半径0.1），其他点正常（半径0.05）
+                const radius = i === selectedLandmark3d ? 0.1 : 0.05;
+                const geometry = new THREE.SphereGeometry(radius, 16, 16);
 
                 // 设置颜色：选中的点为错误色，其他为主色
                 const material = new THREE.MeshPhongMaterial({
